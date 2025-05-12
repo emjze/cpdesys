@@ -1,4 +1,4 @@
-rom opcua import Client
+from opcua import Client
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -7,7 +7,7 @@ PLC_ENDPOINT = "opc.tcp://127.0.0.1:4840"
 
 try:
     print("[+] Intentando conectar al PLC...")
-    client = Client(PLC_ENDPOINT)
+    client = Client(PLC_ENDPOINT)  # DEFINE EL CLIENTE AQUÍ
     client.connect()
     print("[+] Conexión exitosa al PLC")
 
@@ -34,12 +34,16 @@ try:
             print("    - NodeId:", var.nodeid)
             try:
                 print("    - Valor actual:", var.get_value())
-            except:
-                print("    - No se pudo leer el valor")
+            except Exception as e:
+                print("    - No se pudo leer el valor:", e)
 
 except Exception as e:
     print("[-] Error al explorar nodos:", e)
 
 finally:
-    client.disconnect()
-    print("[+] Conexión cerrada correctamente")
+    # Solo desconectar si el cliente fue creado y está conectado
+    try:
+        client.disconnect()
+        print("[+] Conexión cerrada correctamente")
+    except Exception as e:
+        print("[-] Error al cerrar la conexión:", e)
